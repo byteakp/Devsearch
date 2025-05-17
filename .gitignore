@@ -1,0 +1,7 @@
+# .gitignore
+.env
+venv/
+__pycache__/
+*.pyc
+search_index.pkl
+*.log

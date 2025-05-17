@@ -1,0 +1,165 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Search Results for "{{ query }}"</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
+    <link rel="stylesheet" href="https://code.jquery.com/ui/1.13.2/themes/base/jquery-ui.css">
+    <script src="https://code.jquery.com/jquery-3.7.1.min.js"></script>
+    <script src="https://code.jquery.com/ui/1.13.2/jquery-ui.min.js"></script>
+</head>
+<body>
+    <div class="container">
+        <header>
+            <h1><a href="{{ url_for('index') }}" style="color:inherit; text-decoration:none;">🚀 Dual-Mode AI Search Engine</a></h1>
+        </header>
+        <div class="back-to-search-link">
+             <a href="{{url_for('index', query=query, mode=selected_mode, sparse_weight=sparse_weight, dense_weight=dense_weight, max_results=max_results)}}" aria-label="Back to search form or modify query">&laquo; New Search / Modify Query</a>
+        </div>
+
+        {% if search_performed %}
+            <h2>Results for: <span class="query-term-display">"{{ query|e }}"</span></h2>
+            <p class="result-summary">
+                Showing {{ results|length }} results. 
+                (User Mode: {{selected_mode}}, Actual Mode: {{actual_search_mode}}, Sparse: {{ "%.1f"|format(sparse_weight) }}, Dense: {{ "%.1f"|format(dense_weight) }})
+            </p>
+
+            {% if results %}
+            <div class="results-list">
+                {% for result in results %}
+                <div class="result-item" id="result-item-{{ loop.index0 }}" aria-labelledby="result-title-{{loop.index0}}">
+                    <div class="result-header">
+                        <div>
+                            <span class="doc-type {{ result.doc_type_str.lower() }}">{{ result.doc_type_str }}</span>
+                            <strong class="doc-id" id="result-title-{{loop.index0}}">
+                                ID: {{ result.doc_id }}
+                                {% if result.original_doc_id and result.original_doc_id != result.doc_id %}
+                                <small>(Chunk of: {{ result.original_doc_id }})</small>
+                                {% endif %}
+                            </strong>
+                        </div>
+                        <span class="score">Score: {{ "%.4f"|format(result.score) }}</span>
+                    </div>
+                    <div class="metadata">
+                        {% if result.metadata.language and result.metadata.language != 'unknown'%}
+                            <span class="meta-tag lang-{{result.metadata.language|lower|replace('#','sharp')}}">Lang: {{ result.metadata.language }}</span>
+                        {% endif %}
+                        {% if result.metadata.filename %}
+                             <span class="meta-tag">File: {{ result.metadata.filename|e }}</span>
+                        {% endif %}
+                         {% if result.metadata.tags %}
+                            {% for tag in result.metadata.tags %}
+                            <span class="meta-tag">#{{ tag|e }}</span>
+                            {% endfor %}
+                        {% endif %}
+                         {% if result.metadata.extension and result.metadata.extension != 'none' %}
+                             <span class="meta-tag">Ext: {{ result.metadata.extension }}</span>
+                         {% endif %}
+                    </div>
+                    <div class="content-preview">
+                        {% if result.highlights %}
+                            {% for highlight_html in result.highlights %}
+                                <p class="highlight">{% autoescape false %}{{ highlight_html }}{% endautoescape %}</p>
+                            {% endfor %}
+                        {% else %}
+                            <p>{{ result.content[:350]|e }}{% if result.content|length > 350 %}...{% endif %}</p>
+                        {% endif %}
+                    </div>
+                    <details class="full-content-details">
+                        <summary>Show Full Content (Chunk)</summary>
+                        <pre class="full-content"><code>{{ result.content|e }}</code></pre>
+                    </details>
+                    {% if GOOGLE_API_KEY_SET %}
+                    <button class="ai-assist-btn" 
+                            data-content="{{ result.content|e }}" 
+                            data-query="{{ query|e }}" 
+                            data-doctype="{{ result.doc_type_str }}"
+                            data-language="{{ result.metadata.language if result.metadata.language and result.metadata.language != 'unknown' else '' }}"
+                            data-targetid="ai-assist-box-{{ loop.index0 }}"
+                            aria-controls="ai-assist-box-{{ loop.index0 }}"
+                            aria-expanded="false">
+                        🤖 Get AI Insight/Fix
+                    </button>
+                    <div class="ai-suggestion" id="ai-assist-box-{{ loop.index0 }}" style="display:none;" role="region" aria-live="polite"></div>
+                    {% else %}
+                    <p class="text-muted-note" style="font-size:0.8em; color: var(--text-muted-color); margin-top:10px;"><i>AI Assistant (Gemini) disabled. GOOGLE_API_KEY not configured on the server.</i></p>
+                    {% endif %}
+                </div>
+                {% endfor %}
+            </div>
+            {% else %}
+            <p>No results found for your query with the current settings.</p>
+            <p>You could try:
+                <ul>
+                    <li>Broadening your search terms.</li>
+                    <li>Adjusting the 'Sparse' and 'Dense' weights under "Scoring & Results Options".</li>
+                    <li>Changing the 'Search Mode' (e.g., from CODE to GENERAL or vice-versa).</li>
+                </ul>
+            </p>
+            {% endif %}
+        {% else %}
+            <p class="welcome-message">No search was performed. Please use the <a href="{{url_for('index')}}">search form</a>.</p>
+        {% endif %}
+
+    </div>
+    <footer>
+        <p>&copy; {{ current_date[:4] }} AI Search Engine Project. Current Date: {{ current_date }}</p>
+    </footer>
+
+    <script>
+        $(function() {
+            $('.ai-assist-btn').on('click', function() {
+                var button = $(this);
+                var targetBoxId = button.data('targetid'); // Use data-targetid
+                var suggestionBox = $('#' + targetBoxId);
+                
+                // Toggle display and ARIA attribute
+                var isHidden = suggestionBox.is(':hidden');
+                if (isHidden) {
+                    suggestionBox.html("<p class='loading'>🧠 Thinking with AI...</p>").slideDown();
+                    button.attr('aria-expanded', 'true');
+
+                    $.ajax({
+                        url: "{{ url_for('ai_assist') }}",
+                        type: "POST",
+                        contentType: "application/json",
+                        data: JSON.stringify({
+                            content: button.data('content'),
+                            query: button.data('query'),
+                            doc_type: button.data('doctype'),
+                            language: button.data('language')
+                        }),
+                        success: function(response) {
+                            if (response.ai_suggestion) {
+                                // Sanitize HTML from Gemini if it's not guaranteed to be safe
+                                // For now, assuming Gemini output is plain text or simple markdown-like newlines
+                                var formattedSuggestion = response.ai_suggestion.replace(/\n/g, '<br>');
+                                suggestionBox.html("<strong>AI Assistant:</strong><div class='ai-formatted-text'>" + formattedSuggestion + "</div>");
+                            } else if (response.error) { // Handle error from server-side logic
+                                suggestionBox.html("<p class='error'>AI Assistant Error: " + DOMPurify.sanitize(response.error) + "</p>");
+                            } else {
+                                suggestionBox.html("<p>AI assistant could not provide a suggestion for this item.</p>");
+                            }
+                        },
+                        error: function(xhr, status, error) {
+                            let errorMsg = "Error contacting AI assistant";
+                            if (xhr.responseJSON && xhr.responseJSON.error) {
+                                errorMsg += ": " + DOMPurify.sanitize(xhr.responseJSON.error); // Sanitize if displaying user-facing error
+                            } else if (error) {
+                                errorMsg += ": " + DOMPurify.sanitize(error);
+                            }
+                            suggestionBox.html("<p class='error'>" + errorMsg + "</p>");
+                        }
+                    });
+                } else {
+                    suggestionBox.slideUp(function() { $(this).empty(); }); // Empty after slideUp
+                    button.attr('aria-expanded', 'false');
+                }
+            });
+        });
+        // Note: DOMPurify is not included here but would be good for sanitizing AI responses if they could contain HTML.
+        // For now, we assume plain text + <br>. If using DOMPurify, include its script.
+    </script>
+</body>
+</html>

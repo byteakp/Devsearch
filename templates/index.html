@@ -1,0 +1,115 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Dual-Mode AI Search</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
+    <link rel="stylesheet" href="https://code.jquery.com/ui/1.13.2/themes/base/jquery-ui.css">
+    <script src="https://code.jquery.com/jquery-3.7.1.min.js"></script>
+    <script src="https://code.jquery.com/ui/1.13.2/jquery-ui.min.js"></script>
+</head>
+<body>
+    <div class="container">
+        <header>
+            <h1>🚀 Dual-Mode AI Search Engine(SHIIT)</h1>
+            <p>Search code, errors, logs, and general topics with AI-powered insights.</p>
+        </header>
+
+        <form action="{{ url_for('search') }}" method="GET" class="search-form">
+            <div class="search-bar-container">
+                <input type="search" name="query" id="query" 
+                       placeholder="Enter your query: code snippet, error message, or topic..." 
+                       required 
+                       value="{{ query if query else '' }}" 
+                       aria-label="Search Query"
+                       autofocus>
+                <button type="submit" aria-label="Search">Search</button>
+            </div>
+
+            <div class="options-bar">
+                <fieldset class="search-mode">
+                    <legend>Search Mode</legend>
+                    <label><input type="radio" name="mode" value="AUTO" {% if selected_mode == 'AUTO' or not selected_mode %}checked{% endif %}> Auto-Detect</label>
+                    <label><input type="radio" name="mode" value="CODE" {% if selected_mode == 'CODE' %}checked{% endif %}> Code &amp; Logs</label>
+                    <label><input type="radio" name="mode" value="GENERAL" {% if selected_mode == 'GENERAL' %}checked{% endif %}> General Topics</label>
+                </fieldset>
+                
+                <div class="advanced-options">
+                    <details {% if sparse_weight != 0.5 or dense_weight != 0.5 or max_results != 10 %}open{% endif %}>
+                        <summary>Scoring &amp; Results Options</summary>
+                        <div>
+                            <label for="sparse_weight">Sparse (Keyword) Weight: <span id="sparse_val_display">{{ "%.1f"|format(sparse_weight) }}</span></label>
+                            <input type="range" id="sparse_weight" name="sparse_weight" min="0" max="1" step="0.1" value="{{ sparse_weight }}" oninput="updateSliderDisplay('sparse_weight', 'sparse_val_display')" aria-label="Sparse Weight Slider">
+                        </div>
+                        <div>
+                            <label for="dense_weight">Dense (Semantic) Weight: <span id="dense_val_display">{{ "%.1f"|format(dense_weight) }}</span></label>
+                            <input type="range" id="dense_weight" name="dense_weight" min="0" max="1" step="0.1" value="{{ dense_weight }}" oninput="updateSliderDisplay('dense_weight', 'dense_val_display')" aria-label="Dense Weight Slider">
+                        </div>
+                        <div>
+                            <label for="max_results">Max Results to Display:</label>
+                            <input type="number" id="max_results" name="max_results" min="1" max="50" value="{{ max_results }}" aria-label="Maximum Results">
+                        </div>
+                    </details>
+                </div>
+            </div>
+        </form>
+        
+        <div id="results-area">
+            {% if not search_performed %}
+            <p class="welcome-message">
+                Enter a query above to start searching the indexed documents. <br>
+                The system supports code-specific searches (like error logs, API references, code snippets) 
+                and general-purpose queries (articles, facts, tools).
+            </p>
+            {% endif %}
+            </div>
+
+    </div>
+    <footer>
+        <p>&copy; {{ current_date[:4] }} AI Search Engine Project. Current Date: {{ current_date }}</p>
+    </footer>
+
+    <script>
+        $(function() {
+            $("#query").autocomplete({
+                source: function(request, response) {
+                    $.ajax({
+                        url: "{{ url_for('autocomplete') }}",
+                        dataType: "json",
+                        data: {
+                            term: request.term, // Current text in input
+                            mode: $('input[name="mode"]:checked').val() // Pass selected search mode
+                        },
+                        success: function(data) {
+                            response(data); // Pass suggestions to autocomplete widget
+                        },
+                        error: function(jqXHR, textStatus, errorThrown) {
+                            console.error("Autocomplete error:", textStatus, errorThrown);
+                            response([]); // Return empty array on error to prevent UI freezing
+                        }
+                    });
+                },
+                minLength: 2,    // Min characters before triggering autocomplete
+                delay: 250,      // Delay in ms before sending request (reduces API calls)
+                select: function(event, ui) { // Optional: submit form when a suggestion is selected
+                    if (ui.item && ui.item.value) {
+                        $("#query").val(ui.item.value); // Set input to selected suggestion
+                        $(this.form).submit(); // Submit the parent form
+                    }
+                },
+                classes: { // Add custom classes for more styling control if needed
+                    "ui-autocomplete": "custom-autocomplete-results",
+                    "ui-menu-item": "custom-autocomplete-item"
+                }
+            });
+        });
+
+        function updateSliderDisplay(sliderId, displaySpanId) {
+            // Updates the text display next to a range slider
+            let sliderValue = parseFloat(document.getElementById(sliderId).value).toFixed(1);
+            document.getElementById(displaySpanId).textContent = sliderValue;
+        }
+    </script>
+</body>
+</html>

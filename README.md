@@ -1,69 +1,108 @@
-# Dual-Mode AI Search Engine: Usage Guide
+# Dual-Mode AI Search Engine
 
-**Version:** 1.0 (As of May 2025)
+**Version**: 1.0 (May 2025)
+A Flask-based search engine with hybrid retrieval (BM25 + Sentence Transformers) and Gemini API integration for code-specific and general-purpose searches. Features smart autocomplete, adjustable scoring, and highlighted results.
 
-This guide covers how to use the search engine for code and general queries, along with performance details.
+## Features
+- **Dual Modes**: Code-specific (e.g., code snippets, error logs) and General-purpose (e.g., articles, topics) search with Auto-Detect.
+- **Hybrid Retrieval**: Combines BM25 (keyword-based) and Sentence Transformer (semantic) scores via Reciprocal Rank Fusion (RRF).
+- **AI Insights**: Gemini API provides query completions and contextual suggestions.
+- **Web Interface**: Flask UI with search bar, mode selection, and sliders for sparse/dense scoring weights.
+- **Performance**: <300ms query response for <10k documents; ~1-2 min indexing for ~1k documents.
 
-## 🔍 How to Use the Search Engine
+## Preview
+![Dual-Mode AI Search Engine Demo](https://ibb.co/39JVfwYz)
 
-### 1. **Building the Search Index**
-To search, you first need to build an index from your documents.
+![Search Engine Preview](https://ibb.co/4n7B29bx)
 
-Run the following command in the `search_project` directory (with virtual environment activated):
+## Requirements
+- Python 3.8+
+- Virtual environment (recommended)
+- Dependencies: `flask`, `sentence-transformers`, `rank-bm25`, Gemini API key
+- Install via: `pip install -r requirements.txt`
+
+## Setup
+1. **Clone the Repository**:
+   ```bash
+   git clone <repository-url>
+   cd search_project
+   ```
+2. **Set Up Virtual Environment**:
+   ```bash
+   python -m venv venv
+   source venv/bin/activate  # On Windows: venv\Scripts\activate
+   ```
+3. **Install Dependencies**:
+   ```bash
+   pip install -r requirements.txt
+   ```
+4. **Configure Gemini API**:
+   - Add your Gemini API key to `config.py` or as an environment variable (`GEMINI_API_KEY`).
+
+## Usage
+### 1. Build the Search Index
+Index documents (code files like `.py`, `.js`, `.log` or text like `.txt`, `.md`):
 ```bash
 python build_index_script.py --data_path ./sample_data/ --index_file search_index.pkl
 ```
-- **Options:**
-  - `--data_path`: Directory with documents (default: `./sample_data/`).
-  - `--index_file`: Where to save the index (default: `search_index.pkl`).
-  - `--model_name`: Sentence Transformer model (default: `all-MiniLM-L6-v2`). Use `""` or `NONE` to disable dense embeddings.
-  - `--force_re_embed`: Force recomputation of dense embeddings.
-  - `--log_level`: Set logging level (DEBUG, INFO, WARNING, ERROR; default: INFO).
+- **Options**:
+  - `--data_path`: Document directory (default: `./sample_data/`).
+  - `--index_file`: Index save path (default: `search_index.pkl`).
+  - `--model_name`: Sentence Transformer model (default: `all-MiniLM-L6-v2`). Use `NONE` to disable dense embeddings.
+  - `--force_re_embed`: Recompute embeddings.
+  - `--log_level`: Logging level (DEBUG, INFO, WARNING, ERROR; default: INFO).
 
-This indexes code files (e.g., `.py`, `.js`, `.log`) and general documents (e.g., `.txt`, `.md`) from the specified directory.
-
-### 2. **Running the Search Application**
-Start the Flask web app:
+### 2. Run the Search Application
+Start the Flask app:
 ```bash
 python app.py
 ```
-- Access the interface at `http://localhost:5001` (or the address shown in the terminal).
-- The UI includes a search bar, mode selection (Code, General, Auto-Detect), and sliders for sparse (`sparse_weight`) and dense (`dense_weight`) scoring.
+- Access at `http://localhost:5001` (check terminal for exact address).
+- UI includes search bar, mode selector (Code, General, Auto-Detect), and scoring sliders.
 
-### 3. **Performing Searches**
-- **Code-Specific Search:**
-  - Select "Code" mode or let Auto-Detect identify code-related queries.
-  - Enter queries like:
-    - Code snippets (e.g., `def example_function():`).
-    - Error messages (e.g., `TypeError: 'NoneType' object is not subscriptable`).
-    - API/framework issues (e.g., `Flask route not found`).
-  - Results include code snippets, debug logs, or stack traces with highlighted matches.
-  - AI insights (via Gemini API) may suggest fixes or explanations.
+### 3. Perform Searches
+- **Code Search**:
+  - Mode: Select "Code" or use Auto-Detect.
+  - Queries: Code snippets (e.g., `def example_function():`), errors (e.g., `TypeError: 'NoneType' object is not subscriptable`), or API issues (e.g., `Flask route not found`).
+  - Results: Code, logs, or stack traces with highlighted matches; AI suggestions for fixes.
+- **General Search**:
+  - Mode: Select "General" or use Auto-Detect.
+  - Queries: Topics (e.g., `machine learning basics`), questions (e.g., `What is BM25?`), or keywords (e.g., `search engine optimization`).
+  - Results: Articles or tools with highlighted snippets; AI summaries.
+- **Auto-Detect**: Automatically selects mode based on query (code syntax vs. natural language).
+- **Smart Autocomplete**: Gemini API suggests completions tailored to mode.
 
-- **General Purpose Search:**
-  - Select "General" mode or use Auto-Detect for non-code queries.
-  - Enter queries like:
-    - Topics (e.g., `machine learning basics`).
-    - Questions (e.g., `What is BM25?`).
-    - Keywords (e.g., `search engine optimization`).
-  - Results include articles, summaries, or tools with highlighted snippets.
-  - AI insights provide summaries or additional context.
+### 4. Customize Search
+- Adjust sparse (`sparse_weight`) and dense (`dense_weight`) scoring via UI sliders (0 to 1).
+- Optimize indexing/search speed by disabling dense embeddings (`--model_name NONE`).
+- Tune `max_chunk_size` and `chunk_overlap` in `search_engine.py` for precision vs. speed.
 
-- **Auto-Detect Mode:**
-  - Automatically selects Code or General mode based on query content (e.g., code syntax vs. natural language).
+## Performance
+- **Query Speed**: <300ms for <10k documents on mid-tier hardware (8GB RAM, 4-core CPU).
+- **Indexing**: ~1-2 minutes for ~1k documents.
+- **Tips**:
+  - Use BM25 (sparse) for faster keyword searches.
+  - Disable dense embeddings for quicker indexing.
+  - Adjust chunk sizes in `search_engine.py` for performance.
 
-- **Smart Autocomplete:**
-  - As you type, the Gemini API suggests query completions tailored to the mode (e.g., code syntax for Code mode, topics for General).
+## Project Structure
+```
+search_project/
+├── app.py                # Flask web app
+├── build_index_script.py # Index builder
+├── search_engine.py      # Core search logic
+├── sample_data/          # Sample documents
+├── templates/            # HTML templates
+├── static/               # CSS/JS for UI
+└── requirements.txt      # Dependencies
+```
 
-### 4. **Search Features**
-- **Hybrid Retrieval:** Combines BM25 (keyword-based) and Sentence Transformer (semantic) scores using Reciprocal Rank Fusion (RRF).
-- **Highlighting:** Query terms are bolded in results.
-- **Adjustable Parameters:** Use UI sliders to balance sparse and dense weights (0 to 1).
+## Contributing
+- Report issues or suggest features via the repository's issue tracker.
+- Submit pull requests with clear descriptions of changes.
 
-## 🚀 Performance
-- **Query Speed:** Designed for responses under 300ms on moderately sized datasets (<10k documents) on a mid-tier machine (e.g., 8GB RAM, 4-core CPU).
-- **Indexing Efficiency:** Building an index for ~1k documents takes ~1-2 minutes, depending on dense embedding usage.
-- **Optimization Notes:**
-  - Sparse search (BM25) is faster for keyword-heavy queries.
-  - Dense search (Sentence Transformers) improves semantic understanding but is slower; disable via `--model_name NONE` for faster indexing/search.
-  - Adjust `max_chunk_size` and `chunk_overlap` in `search_engine.py` to balance precision and speed.
+## License
+MIT License. See `LICENSE` for details.
+
+## Screenshots
+Refer to the repository's `/docs` folder or issue tracker for UI screenshots and demo visuals.

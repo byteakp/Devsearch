@@ -10,10 +10,6 @@ A Flask-based search engine with hybrid retrieval (BM25 + Sentence Transformers)
 - **Web Interface**: Flask UI with search bar, mode selection, and sliders for sparse/dense scoring weights.
 - **Performance**: <300ms query response for <10k documents; ~1-2 min indexing for ~1k documents.
 
-## Preview
-![Dual-Mode AI Search Engine Demo](https://ibb.co/39JVfwYz)
-
-![Search Engine Preview](https://ibb.co/4n7B29bx)
 
 ## Requirements
 - Python 3.8+
